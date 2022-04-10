@@ -1,3 +1,7 @@
+const {from, fromEvent, of, combineLatest} = rxjs;
+const {ajax} = rxjs.ajax;
+const {map, switchMap, mergeMap, pluck, scan} = rxjs.operators;
+
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
 	if (/^광역/.test(name)) {
@@ -88,5 +92,124 @@ export default class Map {
 	constructor($map) {
 		this.naverMap = createNaverMap($map);
 		this.infowindow = createNaverInfoWindow();
+
+		const station$ = this.createDragend$().pipe(
+			(coord$) => this.mapStation(coord$),
+			(station$) => this.manageMarker(station$),
+			(marker$) => this.mapMarkerClick(marker$),
+			(markerInfo$) => this.mapBus(markerInfo$),
+		);
+
+		station$.subscribe(({markerInfo, buses}) => {
+			if (this.isOpenInfoWindow(markerInfo.position)) {
+				this.openInfoWindow(
+					markerInfo.marker,
+					markerInfo.position,
+					this.render(buses, markerInfo),
+				);
+			} else {
+				this.closeInfoWindow();
+			}
+		});
+	}
+
+	createDragend$() {
+		return fromEvent(this.naverMap, 'dragend') // 지도 영역을 dragend 했을 때
+			.pipe(
+				map(({coord}) => ({
+					latitude: coord.y,
+					longitude: coord.x,
+				})),
+			);
+	}
+
+	mapStation(coord$) {
+		return coord$.pipe(
+			switchMap((coord) =>
+				ajax.getJSON(`/station/around/${coord.longitude}/${coord.latitude}`),
+			),
+			pluck('busStationAroundList'),
+		);
+	}
+
+	mapMarkerClick(marker$) {
+		return marker$.pipe(
+			mergeMap((marker) => fromEvent(marker, 'click')),
+			map(({overlay}) => ({
+				marker: overlay,
+				position: overlay.getPosition(),
+				id: overlay.getOptions('id'),
+				name: overlay.getOptions('name'),
+			})),
+		);
+	}
+
+	manageMarker(station$) {
+		return station$.pipe(
+			map((stations) =>
+				stations.map((station) => {
+					const marker = this.createMarker(
+						station.stationName,
+						station.x,
+						station.y,
+					);
+
+					marker.setOptions('id', station.stationId);
+					marker.setOptions('name', station.stationName);
+
+					return marker;
+				}),
+			),
+			scan((prevMarkers, markers) => {
+				prevMarkers.forEach((prevMarker) => this.deleteMarker(prevMarker));
+				prevMarkers = markers;
+
+				return prevMarkers;
+			}, []),
+			mergeMap((markers) => from(markers)),
+		);
+	}
+
+	mapBus(markerInfo$) {
+		return markerInfo$.pipe(
+			switchMap((markerInfo) => {
+				const marker$ = of(markerInfo);
+				const bus$ = ajax
+					.getJSON(`/bus/pass/station/${markerInfo.id}`)
+					.pipe(pluck('busRouteList'));
+
+				return combineLatest(marker$, bus$, (marker, buses) => ({
+					buses,
+					markerInfo,
+				}));
+			}),
+		);
+	}
+
+	render(buses, {name}) {
+		const list = buses
+			.map(
+				(bus) => /* html */ `
+					<dd>
+						<a href="#${bus.routeId}_${bus.routeName}">
+						<strong>${bus.routeName}</strong>
+						<span>${bus.regionName}</span>
+						<span
+							class="type ${getBuesType(bus.routeTypeName)}"
+						>
+							${bus.routeTypeName}
+						</span>
+						</a>
+					</dd>
+				`,
+			)
+			.join('');
+
+		return /* html */ `
+			<dl class="bus-routes">
+				<dt><strong>${name}</strong></dt>
+				${list}
+			</dl>
+		`;
 	}
 }
