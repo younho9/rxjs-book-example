@@ -13,7 +13,7 @@ const { switchMap, map, take } = require("rxjs/operators");
  *  - [정류소조회서비스 조회 (경기도)](https://www.data.go.kr/dataset/15000424/openapi.do)
  *  - [버스노선 조회 (경기도)](https://www.data.go.kr/dataset/15000430/openapi.do)
  */
-const SERVICE_KEY = "MpmiwfwaQQGY9aZEbmf2UwD4K0mOx7X5H4twJWlLYCQ7h8GH0Rypsi41pMDm67H4f0bjtiSk1NUVsWS5PyOkpw%3D%3D";
+const SERVICE_KEY = "1234567890";
 
 app.use(express.static("./"));
 
