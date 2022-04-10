@@ -1,4 +1,3 @@
 export default class Sidebar {
-    constructor($sidebar) {
-    }
-};
+	constructor($sidebar) {}
+}
