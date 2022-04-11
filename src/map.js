@@ -1,6 +1,6 @@
 const {from, fromEvent, of, combineLatest} = rxjs;
 const {ajax} = rxjs.ajax;
-const {map, switchMap, mergeMap, pluck, scan} = rxjs.operators;
+const {tap, map, switchMap, mergeMap, pluck, scan} = rxjs.operators;
 
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
@@ -132,18 +132,6 @@ export default class Map {
 		);
 	}
 
-	mapMarkerClick(marker$) {
-		return marker$.pipe(
-			mergeMap((marker) => fromEvent(marker, 'click')),
-			map(({overlay}) => ({
-				marker: overlay,
-				position: overlay.getPosition(),
-				id: overlay.getOptions('id'),
-				name: overlay.getOptions('name'),
-			})),
-		);
-	}
-
 	manageMarker(station$) {
 		return station$.pipe(
 			map((stations) =>
@@ -167,6 +155,18 @@ export default class Map {
 				return prevMarkers;
 			}, []),
 			mergeMap((markers) => from(markers)),
+		);
+	}
+
+	mapMarkerClick(marker$) {
+		return marker$.pipe(
+			mergeMap((marker) => fromEvent(marker, 'click')),
+			map(({overlay}) => ({
+				marker: overlay,
+				position: overlay.getPosition(),
+				id: overlay.getOptions('id'),
+				name: overlay.getOptions('name'),
+			})),
 		);
 	}
 
