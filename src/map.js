@@ -1,8 +1,8 @@
 import {handleAjax} from './common.js';
 
-const {from, fromEvent, of, combineLatest} = rxjs;
+const {fromEvent, from, of, merge, combineLatest} = rxjs;
 const {ajax} = rxjs.ajax;
-const {tap, map, switchMap, mergeMap, pluck, scan} = rxjs.operators;
+const {map, switchMap, pluck, mergeMap, scan, tap} = rxjs.operators;
 
 // 버스 타입의 클래스를 결정하는 함수
 function getBuesType(name) {
@@ -14,6 +14,7 @@ function getBuesType(name) {
 		return '';
 	}
 }
+
 // 네이버 지도 생성
 function createNaverMap($map) {
 	return new naver.maps.Map($map, {
@@ -21,10 +22,12 @@ function createNaverMap($map) {
 		minZoom: 6,
 	});
 }
+
 // 네이버 지도 위에 표시할 정보윈도우 생성
 function createNaverInfoWindow() {
 	return new naver.maps.InfoWindow();
 }
+
 export default class Map {
 	// 네이버 지도API를 이용하여 지도의 중앙을 주어진 좌표로 이동하고 지도의 zoom을 11로 지정한다. 또한 infoWindow를 닫는다.
 	centerMapAndCloseWindow(coord) {
@@ -34,6 +37,7 @@ export default class Map {
 		this.naverMap.setZoom(11);
 		this.infowindow.close();
 	}
+
 	// 지도의 특정 위치에 마커를 생성한다.
 	createMarker(name, x, y) {
 		return new naver.maps.Marker({
@@ -42,10 +46,12 @@ export default class Map {
 			position: new naver.maps.LatLng(y, x),
 		});
 	}
+
 	// 지도에 있는 마커를 제거한다.
 	deleteMarker(marker) {
 		marker && marker.setMap(null);
 	}
+
 	// 정류소 정보를 바탕으로 네이버 지도API를 이용하여 지도에 경로를 그린다.
 	drawPath(stations) {
 		// 경로를 지도에 표시한다.
@@ -65,6 +71,7 @@ export default class Map {
 			path.push(new naver.maps.LatLng(station.y, station.x));
 		});
 	}
+
 	// 네이버 지도API를 이용하여 지도에 경로가 있다면 지운다.
 	deletePath() {
 		// 기존 패스 삭제
@@ -73,6 +80,7 @@ export default class Map {
 			this.polyline = null;
 		}
 	}
+
 	// 지도 위에 표시되는 정보창(infowindow)을 보여준다.
 	// 이때 대상 마커 인스턴스와 정보창에 보여줄 내용, 그리고 정보창이 보여질 위치 정보를 전달한다.
 	openInfoWindow(marker, position, content) {
@@ -80,6 +88,7 @@ export default class Map {
 		this.infowindow.setContent(content);
 		this.infowindow.open(this.naverMap, marker);
 	}
+
 	// 지도 위에 표시되는 정보창(infowindow)을 닫는다.
 	closeInfoWindow() {
 		this.infowindow.close();
@@ -91,11 +100,12 @@ export default class Map {
 			position.equals(this.infowindow.getPosition()) && this.infowindow.getMap()
 		);
 	}
-	constructor($map) {
+
+	constructor($map, search$) {
 		this.naverMap = createNaverMap($map);
 		this.infowindow = createNaverInfoWindow();
 
-		const station$ = this.createDragend$().pipe(
+		const station$ = merge(search$, this.createDragend$()).pipe(
 			(coord$) => this.mapStation(coord$),
 			(station$) => this.manageMarker(station$),
 			(marker$) => this.mapMarkerClick(marker$),
@@ -194,13 +204,11 @@ export default class Map {
 				(bus) => /* html */ `
 					<dd>
 						<a href="#${bus.routeId}_${bus.routeName}">
-						<strong>${bus.routeName}</strong>
-						<span>${bus.regionName}</span>
-						<span
-							class="type ${getBuesType(bus.routeTypeName)}"
-						>
-							${bus.routeTypeName}
-						</span>
+							<strong>${bus.routeName}</strong>
+							<span>${bus.regionName}</span>
+							<span class="type ${getBuesType(bus.routeTypeName)}">
+								${bus.routeTypeName}
+							</span>
 						</a>
 					</dd>
 				`,
